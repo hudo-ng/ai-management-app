@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import z from "zod";
 import { prisma } from "@/lib/db";
 import { error } from "console";
 
 const CreateProject = z.object({
-  name: z.string({ error: "Project name required" }).min(1).max(120),
+  name: z.string().min(1, "project name cant not be empty").max(120),
   description: z.string().max(1000).optional(),
 });
 
@@ -20,9 +19,13 @@ export async function POST(req: Request) {
   const body = await req.json();
   const parsedBody = CreateProject.safeParse(body);
   if (!parsedBody.success) {
-    return NextResponse.json({
-      message: parsedBody.error.message,
-    });
+    const flattenErrors = z.flattenError(parsedBody.error);
+    return NextResponse.json(
+      {
+        error: flattenErrors.fieldErrors,
+      },
+      { status: 400 }
+    );
   }
 
   const { name, description } = parsedBody.data;
@@ -32,5 +35,11 @@ export async function POST(req: Request) {
       description,
     },
   });
-  return NextResponse.json({ message: "Project created", status: 201 });
+  return NextResponse.json(
+    {
+      id: project.id,
+      message: "Project created",
+    },
+    { status: 201 }
+  );
 }
