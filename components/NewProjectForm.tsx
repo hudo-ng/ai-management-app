@@ -22,7 +22,6 @@ export default function NewProjectForm() {
       console.log(res);
       if (!res.ok) {
         const data = await res.json();
-        console.log(data);
         setError(data?.error.name ?? "Failed to create project");
       }
     } catch (err: any) {

@@ -1,6 +1,7 @@
 import ProjectCard from "@/components/ProjectCard";
 import NewProjectForm from "@/components/NewProjectForm";
 import { Project } from "@prisma/client";
+import Link from "next/link";
 
 async function getProjects() {
   const res = await fetch(
@@ -25,12 +26,12 @@ export default async function ProjectsPage() {
         </div>
       </header>
       <NewProjectForm />
-      {!projects ? (
-        <p>No projects available</p>
-      ) : (
+      {projects.length !== 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p: Project) => (
-            <ProjectCard key={p.id} project={p} />
+            <Link href={`/projects/${p.id}`}>
+              <ProjectCard key={p.id} project={p} />
+            </Link>
           ))}
         </div>
       )}

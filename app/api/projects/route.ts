@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import z from "zod";
 import { prisma } from "@/lib/db";
-import { error } from "console";
 
 const CreateProject = z.object({
   name: z.string().min(1, "project name cant not be empty").max(120),
   description: z.string().max(1000).optional(),
 });
 
+
 export async function GET() {
   const projects = await prisma.project.findMany({
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json(projects);
+  return NextResponse.json({ projects });
 }
 
 export async function POST(req: Request) {
@@ -43,3 +43,4 @@ export async function POST(req: Request) {
     { status: 201 }
   );
 }
+
