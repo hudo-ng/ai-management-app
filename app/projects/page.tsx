@@ -1,19 +1,18 @@
+"use client";
+
+import { useProjects } from "@/hooks/useProjects";
 import ProjectCard from "@/components/ProjectCard";
 import NewProjectForm from "@/components/NewProjectForm";
 import { Project } from "@prisma/client";
 import Link from "next/link";
 
-async function getProjects() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_PAGE_URL ?? ""}/api/projects`,
-    { cache: "no-store" }
-  );
-  if (!res.ok) throw new Error("Failed to fetch projects");
-  const data = await res.json();
-  return data.projects;
-}
-export default async function ProjectsPage() {
-  const projects = await getProjects();
+export default function ProjectsPage() {
+  const { data, isLoading, error } = useProjects();
+
+  if (isLoading) return <p>Loading projects...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  const projects = data?.projects ?? [];
 
   return (
     <section className="space-y-6">

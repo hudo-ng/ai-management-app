@@ -1,71 +1,55 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  useProject,
+  useEditProject,
+  useDeleteProject,
+} from "@/hooks/useProjects";
 import { notFound, useParams, useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 
 export default function EditProjectPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const { id } = useParams<{ id: string }>();
   if (!id) return notFound();
 
+  const { data, isLoading, error } = useProject(id);
+  const updateMutation = useEditProject();
+  const deleteMutation = useDeleteProject();
+
   useEffect(() => {
-    fetch(`/api/projects/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setName(data.project.name),
-          setDescription(data.project.description || "");
-        setLoading(false);
-      });
-  }, [id]);
+    if (data?.project) {
+      setName(data.project.name);
+      setDescription(data.project.description);
+    }
+  }, [data]);
 
   async function updateProject(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, description }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data?.error.name ?? "Failed to update");
-        return;
+    updateMutation.mutate(
+      { id, name, description },
+      {
+        onSuccess: () => {
+          router.push(`/projects`);
+        },
       }
-      router.push(`/projects/${id}`);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
+    );
   }
 
   async function deleteProject() {
     if (!confirm("Delete this project?")) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data?.error.name ?? "Failed to delete");
-      }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
+    deleteMutation.mutate(id, {
+      onSuccess: () => router.push(`/projects/${id}`),
+    });
   }
 
-  if (loading) return <p>Loading…</p>;
+  if (isLoading) return <p>Loading…</p>;
+
+  if (error) return <p>Error loading project: {error.message}</p>;
 
   return (
     <form onSubmit={updateProject} className="space-y-4 max-w-lg">
@@ -88,12 +72,18 @@ export default function EditProjectPage() {
       </div>
       {error && <p className="text-red-500 text-sm">{error}</p>}
       <div className="flex gap-3">
-        <Button type="submit" loading={saving}>
-          Save
+        <Button
+          type="submit"
+          loading={updateMutation.isPending}
+          disabled={updateMutation.isPending}
+        >
+          {updateMutation.isPending ? "Saving..." : "Save"}
         </Button>
         <Button type="button" onClick={deleteProject} className="bg-red-600">
           Delete
         </Button>
+        {updateMutation.isSuccess && <p>Project updated</p>}
+        {deleteMutation.isSuccess && <p>Project deleted</p>}
       </div>
     </form>
   );

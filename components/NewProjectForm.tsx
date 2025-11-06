@@ -1,34 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { useCreateProject } from "@/hooks/useProjects";
 import Button from "./ui/Button";
 
 export default function NewProjectForm() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const mutation = useCreateProject();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, description }),
-      });
-      console.log(res);
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data?.error.name ?? "Failed to create project");
+    mutation.mutate(
+      { name, description },
+      {
+        onSuccess: () => {
+          setName(""), setDescription("");
+        },
       }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    );
   }
 
   return (
@@ -51,9 +41,15 @@ export default function NewProjectForm() {
           rows={3}
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button loading={loading} type="submit">
-        Create project
+      {mutation.error && (
+        <p className="text-sm text-red-600">{mutation.error.message}</p>
+      )}
+      <Button
+        loading={mutation.isPending}
+        disabled={mutation.isPending}
+        type="submit"
+      >
+        {mutation.isPending ? "Creating..." : "Create Project"}
       </Button>
     </form>
   );
