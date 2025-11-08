@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
 import z from "zod";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth.config";
+import { error } from "console";
 
 type Params = Promise<{ id: string }>;
 const UpdateProject = z.object({
@@ -23,16 +26,29 @@ export async function GET(_: Request, { params }: { params: Params }) {
   return NextResponse.json({ project }, { status: 200 });
 }
 
-export async function PATCH(res: Request, { params }: { params: Params }) {
+export async function PATCH(req: Request, { params }: { params: Params }) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
-    const body = await res.json();
+    const body = await req.json();
 
     if (!id) {
       return NextResponse.json(
         { error: "Project id not found" },
         { status: 404 }
       );
+    }
+
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project)
+      return NextResponse.json({ error: "Project not found" }, { status: 400 });
+
+    if (project?.ownerId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const parsedBody = UpdateProject.safeParse(body);
@@ -44,12 +60,12 @@ export async function PATCH(res: Request, { params }: { params: Params }) {
       );
     }
 
-    const project = await prisma.project.update({
+    const updatedProject = await prisma.project.update({
       where: { id },
       data: parsedBody.data,
     });
     return NextResponse.json(
-      { project, message: "Project updated" },
+      { updatedProject, message: "Project updated" },
       { status: 200 }
     );
   } catch (e) {
@@ -59,6 +75,10 @@ export async function PATCH(res: Request, { params }: { params: Params }) {
 }
 
 export async function DELETE(_: Request, { params }: { params: Params }) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     if (!id) {
@@ -66,6 +86,17 @@ export async function DELETE(_: Request, { params }: { params: Params }) {
         { error: "Project id not found" },
         { status: 404 }
       );
+    }
+
+    const p = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!p)
+      return NextResponse.json({ error: "Project not found" }, { status: 400 });
+
+    if (p.ownerId! === session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await prisma.project.delete({ where: { id } });

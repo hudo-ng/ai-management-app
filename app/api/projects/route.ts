@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import z from "zod";
 import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth.config";
 
 const CreateProject = z.object({
   name: z.string().min(1, "project name cant not be empty").max(120),
   description: z.string().max(1000).optional(),
 });
-
 
 export async function GET() {
   const projects = await prisma.project.findMany({
@@ -16,6 +17,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const body = await req.json();
   const parsedBody = CreateProject.safeParse(body);
   if (!parsedBody.success) {
@@ -33,6 +38,7 @@ export async function POST(req: Request) {
     data: {
       name,
       description,
+      ownerId: session.user.id,
     },
   });
   return NextResponse.json(
@@ -43,4 +49,3 @@ export async function POST(req: Request) {
     { status: 201 }
   );
 }
-
